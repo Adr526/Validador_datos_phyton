@@ -131,3 +131,31 @@ def test_csv_rechaza_archivo_sin_columnas_requeridas(cliente_csv):
 
     assert respuesta.status_code == 400
     assert "Faltan columnas requeridas" in respuesta.json()["detail"]
+
+
+def test_csv_rechaza_todas_las_filas_con_id_duplicado(cliente_csv):
+    contenido = (
+        "id,nombre,fecha,solicitante\n"
+        "EVT-CSV-105,Capacitacion,2026-10-15,Ana Perez\n"
+        "EVT-CSV-105,Reunion,2026-10-16,Carlos Gomez\n"
+    )
+
+    respuesta = cliente_csv.post(
+        "/eventos/csv",
+        files={
+            "archivo": (
+                "eventos.csv",
+                BytesIO(contenido.encode("utf-8")),
+                "text/csv",
+            )
+        },
+    )
+
+    assert respuesta.status_code == 200
+
+    resultado = respuesta.json()
+    assert resultado["total_eventos"] == 2
+    assert resultado["eventos_guardados"] == 0
+    assert resultado["registros_rechazados"] == 2
+    assert len(resultado["errores"]) == 2
+
