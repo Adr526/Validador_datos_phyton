@@ -1,4 +1,3 @@
-
 from collections.abc import Generator
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -11,6 +10,7 @@ from esquemas import EventoCrear, EventoRespuesta
 from modelos import EventoDB
 from operaciones_eventos import (
     ErrorBaseDatos,
+    EventoDuplicadoError,
     guardar_evento,
     listar_eventos,
 )
@@ -61,12 +61,14 @@ def crear_evento(
     evento: EventoCrear,
     sesion: Session = Depends(obtener_sesion),
 ):
-    datos_validar = [{
-        "id": evento.id_evento,
-        "nombre": evento.nombre,
-        "fecha": evento.fecha.isoformat(),
-        "solicitante": evento.solicitante,
-    }]
+    datos_validar = [
+        {
+            "id": evento.id_evento,
+            "nombre": evento.nombre,
+            "fecha": evento.fecha.isoformat(),
+            "solicitante": evento.solicitante,
+        }
+    ]
 
     errores = validar_eventos(datos_validar)
 
@@ -97,6 +99,12 @@ def crear_evento(
             solicitante=evento.solicitante,
         )
 
+    except EventoDuplicadoError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ya existe un evento con ese ID.",
+        ) from None
+
     except ErrorBaseDatos:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -111,7 +119,10 @@ def crear_evento(
         ) from None
 
 
-@app.get("/eventos", response_model=list[EventoRespuesta])
+@app.get(
+    "/eventos",
+    response_model=list[EventoRespuesta],
+)
 def consultar_eventos(
     sesion: Session = Depends(obtener_sesion),
 ):

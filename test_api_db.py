@@ -1,5 +1,7 @@
 
 import pytest
+from unittest.mock import patch
+from operaciones_eventos import EventoDuplicadoError
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -131,6 +133,26 @@ def test_rechazar_id_duplicado(cliente):
 
     assert segunda_respuesta.status_code == 409
     assert segunda_respuesta.json()["detail"] == (
+        "Ya existe un evento con ese ID."
+    )
+def test_manejar_duplicado_detectado_por_base_datos(cliente):
+    evento = {
+        "id_evento": "EVT-DB-001",
+        "nombre": "Capacitacion Python",
+        "fecha": "2026-11-15",
+        "solicitante": "Laura"
+    }
+
+    with patch(
+        "api.guardar_evento",
+        side_effect=EventoDuplicadoError(
+            "Ya existe un evento con ese ID."
+        )
+    ):
+        respuesta = cliente.post("/eventos", json=evento)
+
+    assert respuesta.status_code == 409
+    assert respuesta.json()["detail"] == (
         "Ya existe un evento con ese ID."
     )
 
