@@ -1,3 +1,7 @@
+import csv
+from io import StringIO
+
+from fastapi.responses import StreamingResponse
 from datetime import date
 import os
 import shutil
@@ -274,3 +278,55 @@ def cargar_eventos_csv(
 
         if ruta_temporal and os.path.exists(ruta_temporal):
             os.unlink(ruta_temporal)
+
+
+@app.post("/eventos/errores/descargar")
+def descargar_reporte_errores(solicitud: dict):
+    errores = solicitud.get("errores", [])
+
+    if not isinstance(errores, list):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="El campo errores debe ser una lista.",
+        )
+
+    salida = StringIO()
+    escritor = csv.DictWriter(
+        salida,
+        fieldnames=["id", "nombre", "errores"],
+    )
+    escritor.writeheader()
+
+    for resultado in errores:
+        if not isinstance(resultado, dict):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Cada error debe ser un objeto.",
+            )
+
+        motivos = resultado.get("errores", [])
+
+        if not isinstance(motivos, list):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Los motivos de error deben ser una lista.",
+            )
+
+        escritor.writerow({
+            "id": resultado.get("id", ""),
+            "nombre": resultado.get("nombre", ""),
+            "errores": ", ".join(str(motivo) for motivo in motivos),
+        })
+
+    contenido = "\ufeff" + salida.getvalue()
+
+    return StreamingResponse(
+        iter([contenido]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="reporte_errores.csv"'
+            )
+        },
+    )
+
