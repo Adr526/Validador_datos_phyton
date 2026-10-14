@@ -45,6 +45,7 @@ def cliente_csv():
     motor.dispose()
 
 
+
 def test_csv_guarda_validos_y_rechaza_fecha_invalida(cliente_csv):
     contenido = (
         "id,nombre,fecha,solicitante\n"
@@ -64,13 +65,13 @@ def test_csv_guarda_validos_y_rechaza_fecha_invalida(cliente_csv):
     )
 
     assert respuesta.status_code == 200
-
-    resultado = respuesta.json()
-    assert resultado["total_eventos"] == 2
-    assert resultado["eventos_guardados"] == 1
-    assert resultado["registros_rechazados"] == 1
-    assert len(resultado["errores"]) == 1
-    assert resultado["errores"][0]["id"] == "EVT-CSV-102"
+    assert "text/csv" in respuesta.headers["content-type"]
+    assert "reporte_errores.csv" in respuesta.headers["content-disposition"]
+    assert respuesta.headers["X-Total-Eventos"] == "2"
+    assert respuesta.headers["X-Eventos-Guardados"] == "1"
+    assert respuesta.headers["X-Registros-Rechazados"] == "1"
+    assert "EVT-CSV-102" in respuesta.text
+    assert "Fecha invalida o ausente" in respuesta.text
 
 
 def test_csv_rechaza_id_que_ya_existe(cliente_csv):
@@ -104,12 +105,13 @@ def test_csv_rechaza_id_que_ya_existe(cliente_csv):
         },
     )
 
+    
     assert segunda_respuesta.status_code == 200
-
-    resultado = segunda_respuesta.json()
-    assert resultado["eventos_guardados"] == 0
-    assert resultado["registros_rechazados"] == 1
-    assert "ya existe" in resultado["errores"][0]["errores"][0]
+    assert "text/csv" in segunda_respuesta.headers["content-type"]
+    assert segunda_respuesta.headers["X-Eventos-Guardados"] == "0"
+    assert segunda_respuesta.headers["X-Registros-Rechazados"] == "1"
+    assert "EVT-CSV-103" in segunda_respuesta.text
+    assert "ya existe" in segunda_respuesta.text
 
 
 def test_csv_rechaza_archivo_sin_columnas_requeridas(cliente_csv):
@@ -151,11 +153,11 @@ def test_csv_rechaza_todas_las_filas_con_id_duplicado(cliente_csv):
         },
     )
 
+
     assert respuesta.status_code == 200
-
-    resultado = respuesta.json()
-    assert resultado["total_eventos"] == 2
-    assert resultado["eventos_guardados"] == 0
-    assert resultado["registros_rechazados"] == 2
-    assert len(resultado["errores"]) == 2
-
+    assert "text/csv" in respuesta.headers["content-type"]
+    assert respuesta.headers["X-Total-Eventos"] == "2"
+    assert respuesta.headers["X-Eventos-Guardados"] == "0"
+    assert respuesta.headers["X-Registros-Rechazados"] == "2"
+    assert respuesta.text.count("EVT-CSV-105") == 2
+    assert respuesta.text.count("ID duplicado") == 2

@@ -253,12 +253,51 @@ def cargar_eventos_csv(
                     detail="No fue posible guardar los eventos.",
                 ) from None
 
-        return {
+
+        resumen = {
             "total_eventos": len(eventos),
             "eventos_guardados": guardados,
             "registros_rechazados": len(eventos) - guardados,
-            "errores": errores,
         }
+
+        # Si no hay errores, devolver el resumen como JSON.
+        if not errores:
+            return resumen
+
+        # Si hay errores, generar un CSV descargable.
+        salida = StringIO(newline="")
+        escritor = csv.DictWriter(
+            salida,
+            fieldnames=["id", "nombre", "errores"],
+        )
+        escritor.writeheader()
+
+        for resultado in errores:
+            escritor.writerow({
+                "id": resultado.get("id") or "",
+                "nombre": resultado.get("nombre") or "",
+                "errores": ", ".join(
+                    str(motivo)
+                    for motivo in resultado.get("errores", [])
+                ),
+            })
+
+        contenido = "\ufeff" + salida.getvalue()
+
+        return StreamingResponse(
+            iter([contenido]),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": (
+                    'attachment; filename="reporte_errores.csv"'
+                ),
+                "X-Total-Eventos": str(resumen["total_eventos"]),
+                "X-Eventos-Guardados": str(resumen["eventos_guardados"]),
+                "X-Registros-Rechazados": str(
+                    resumen["registros_rechazados"]
+                ),
+            },
+        )
 
     except ValueError as error:
         raise HTTPException(
