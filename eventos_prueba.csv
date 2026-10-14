@@ -1,0 +1,4 @@
+﻿id,nombre,fecha,solicitante
+EVT-CSV-201,Capacitacion,2026-10-15,Ana Perez
+EVT-CSV-202,Reunion,2026-10-16,Carlos Gomez
+EVT-CSV-203,Taller,fecha_invalida,Maria Lopez
